@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Ray",
+  "classifications": [ "Common", "Console" ],
+  "identity": "Ray.AutoTaskTemplate",
+  "name": "Auto task templates",
+  "shortName": "autotask",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "AutoTaskTemplate",
+  "preferNameDirectory": true
+}
