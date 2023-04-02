@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Ray.Infrastructure.AutoTask;
+using Ray.Infrastructure.Http;
 using Ray.Serilog.Sinks.PushPlusBatched;
 using Ray.Serilog.Sinks.ServerChanBatched;
 using Ray.Serilog.Sinks.TelegramBatched;
@@ -131,7 +132,7 @@ public class Program
         services.AddTransient<DelayHttpMessageHandler>();
         services.AddTransient<LogHttpMessageHandler>();
         services.AddTransient<ProxyHttpClientHandler>();
-        services.AddTransient<CookieHttpClientHandler>();
+        services.AddTransient<CookieHttpClientHandler<TargetAccountInfo>>();
         services
             .AddRefitClient<IIkuuuApi>()
             .ConfigureHttpClient(c =>
@@ -145,7 +146,7 @@ public class Program
             .AddHttpMessageHandler<DelayHttpMessageHandler>()
             .AddHttpMessageHandler<LogHttpMessageHandler>()
             .ConfigurePrimaryHttpMessageHandler<ProxyHttpClientHandler>()
-            .ConfigurePrimaryHttpMessageHandler<CookieHttpClientHandler>()
+            .ConfigurePrimaryHttpMessageHandler<CookieHttpClientHandler<TargetAccountInfo>>()
             ;
         #endregion
 
