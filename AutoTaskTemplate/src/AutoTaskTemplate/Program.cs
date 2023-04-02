@@ -41,6 +41,14 @@ public class Program
                     );
                 })
                 .ConfigureServices(RegisterServices)
+                .ConfigureServices((hostBuilderContext, services) =>
+                {
+                    var list = services.Where(x => x.ServiceType == typeof(IAutoTaskService))
+                        .Select(x=>x.ImplementationType)
+                        .ToList();
+                    var autoTaskTypeFactory = new AutoTaskTypeFactory(list);
+                    services.AddSingleton(autoTaskTypeFactory);
+                })
                 .UseSerilog()
                 .RunConsoleAsync();
 
@@ -150,6 +158,12 @@ public class Program
             ;
         #endregion
 
-        services.AddTransient<HelloWorldService>();
+        services.Scan(scan => scan
+            .FromAssemblyOf<Program>()
+            .AddClasses(classes => classes.AssignableTo<IAutoTaskService>())
+            .AsImplementedInterfaces()
+            .AsSelf()
+            .WithTransientLifetime()
+        );
     }
 }

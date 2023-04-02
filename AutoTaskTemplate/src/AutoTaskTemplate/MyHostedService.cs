@@ -6,6 +6,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Ray.Infrastructure.AutoTask;
+using System.ComponentModel;
+using System;
+using System.Reflection;
+using System.Threading;
 
 namespace AutoTaskTemplate;
 
@@ -17,6 +21,7 @@ public class MyHostedService : IHostedService
     private readonly ILogger<MyHostedService> _logger;
     private readonly TargetAccountManager<TargetAccountInfo> _accountManager;
     private readonly IServiceProvider _serviceProvider;
+    private readonly AutoTaskTypeFactory _autoTaskTypeFactory;
     private readonly List<AccountOptions> _accountOptions;
 
     public MyHostedService(
@@ -26,7 +31,8 @@ public class MyHostedService : IHostedService
         ILogger<MyHostedService> logger,
         IOptions<List<AccountOptions>> accountOptions,
         TargetAccountManager<TargetAccountInfo> targetAccountManager,
-        IServiceProvider serviceProvider
+        IServiceProvider serviceProvider,
+        AutoTaskTypeFactory autoTaskTypeFactory
     )
     {
         _configuration = configuration;
@@ -35,6 +41,7 @@ public class MyHostedService : IHostedService
         _logger = logger;
         _accountManager = targetAccountManager;
         _serviceProvider = serviceProvider;
+        _autoTaskTypeFactory = autoTaskTypeFactory;
         _accountOptions = accountOptions.Value;
         _accountManager.Init(_accountOptions.Select(x => new TargetAccountInfo(x.Email, x.Pwd)).ToList());
     }
@@ -54,9 +61,7 @@ public class MyHostedService : IHostedService
             _logger.LogInformation("========账号{count}========", i + 1);
             _logger.LogInformation("用户名：{userName}", currentAccount.UserName);
 
-            using var scope = _serviceProvider.CreateScope();
-            var helloWorldService = scope.ServiceProvider.GetRequiredService<HelloWorldService>();
-            await helloWorldService.SayHelloAsync(cancellationToken);
+            await DoTaskAsync(cancellationToken);
 
             _logger.LogInformation("========账号{count}结束========{newLine}", i + 1, Environment.NewLine);
 
@@ -67,5 +72,37 @@ public class MyHostedService : IHostedService
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+    }
+
+    private async Task DoTaskAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        //var helloWorldService = scope.ServiceProvider.GetRequiredService<HelloWorldService>();
+        //await helloWorldService.SayHelloAsync(cancellationToken);
+
+        var run = _configuration["Run"];
+
+        var autoTaskInfo = _autoTaskTypeFactory.GetByCode(run);
+
+        while (autoTaskInfo == null)
+        {
+            _logger.LogInformation("未指定目标任务，请选择要运行的任务：");
+            _autoTaskTypeFactory.Show(_logger);
+            _logger.LogInformation("请输入：");
+
+            var index = System.Console.ReadLine();
+            var suc = int.TryParse(index, out int num);
+            if (!suc)
+            {
+                _logger.LogWarning("输入异常，请输入序号");
+                continue;
+            }
+
+            autoTaskInfo = _autoTaskTypeFactory.GetByIndex(num);
+        }
+
+        _logger.LogInformation("目标任务：{run}", autoTaskInfo.ToString());
+        var service = (IAutoTaskService)scope.ServiceProvider.GetRequiredService(autoTaskInfo.ImplementType);
+        await service.DoAsync(cancellationToken);
     }
 }
