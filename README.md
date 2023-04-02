@@ -6,7 +6,7 @@
 
 1.安装模板
 
-clone本仓库到本地，在README.md同级文件夹下执行`dotnet new install .\ --froce`，成功即表示安装autotask模板成功。
+clone本仓库到本地，在README.md同级文件夹下执行`dotnet new install .\ --force`，成功即表示安装autotask模板成功。
 
 2.生成项目
 
