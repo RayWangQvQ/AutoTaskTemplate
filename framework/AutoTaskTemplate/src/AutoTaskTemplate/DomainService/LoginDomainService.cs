@@ -6,11 +6,6 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using Ray.DDD;
 using Ray.Infrastructure.QingLong;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using AutoTaskTemplate.Configs;
 
 namespace AutoTaskTemplate.DomainService;
@@ -36,6 +31,19 @@ public class LoginDomainService : IDomainService
     }
 
     public async Task LoginAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
+    {
+        //await PwdLoginAsync(myAccount, page, cancellationToken);
+        await QrCodeLoginAsync(myAccount,page, cancellationToken);
+    }
+
+    /// <summary>
+    /// 扫描二维码登录
+    /// </summary>
+    /// <param name="myAccount"></param>
+    /// <param name="page"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task QrCodeLoginAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
     {
         var loginLocator = page.GetByText("登录", new() { Exact = true });
 
@@ -80,13 +88,45 @@ public class LoginDomainService : IDomainService
     }
 
     /// <summary>
+    /// 账号密码登录
+    /// </summary>
+    /// <param name="myAccount"></param>
+    /// <param name="page"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public async Task PwdLoginAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("填入账号：{userName}", myAccount.UserName);
+        var emailLocator = page.GetByLabel("账号");
+        await emailLocator.ClickAsync();
+        await emailLocator.FillAsync(myAccount.UserName);
+
+        _logger.LogInformation("填入密码：{pwd}", new string('*', myAccount.Pwd.Length));
+        var pwdLocator = page.GetByLabel("密码");
+        await pwdLocator.ClickAsync();
+        await pwdLocator.FillAsync(myAccount.Pwd);
+
+        await page.GetByText("记住我").ClickAsync();
+
+        _logger.LogInformation("点击登录");
+        var loginLocator = page.GetByRole(AriaRole.Button, new() { Name = "登录", Exact = true });
+        await loginLocator.ClickAsync();
+
+        //todo:判断是否登录成功
+
+        _logger.LogInformation("持久化账号状态");
+        await SaveStatesAsync(myAccount, page, cancellationToken);
+        _logger.LogInformation("持久化成功");
+    }
+
+    /// <summary>
     /// 持久化状态
     /// </summary>
     /// <param name="myAccount"></param>
     /// <param name="page"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    private async Task SaveStatesAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
+    public async Task SaveStatesAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
     {
         myAccount.States = await page.Context.StorageStateAsync();
 
