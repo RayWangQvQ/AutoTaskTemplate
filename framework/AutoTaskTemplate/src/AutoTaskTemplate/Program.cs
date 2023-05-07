@@ -5,8 +5,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Ray.DDD;
+using Ray.Infrastructure;
 using Ray.Infrastructure.AutoTask;
 using Ray.Infrastructure.Http;
+using Ray.Infrastructure.QingLong;
 using Ray.Serilog.Sinks.PushPlusBatched;
 using Ray.Serilog.Sinks.ServerChanBatched;
 using Ray.Serilog.Sinks.TelegramBatched;
@@ -19,16 +22,16 @@ namespace AutoTaskTemplate;
 
 public class Program
 {
-    private const string EnvPrefix = "AutoTaskTemplate_";
-
     public static async Task<int> Main(string[] args)
     {
         Log.Logger = CreateLogger(args);
         try
         {
-            Log.Logger.Information("Starting console host.");
+            Log.Logger.Information("Installing browser.");
+            InstallBrowser();
 
-            await Host.CreateDefaultBuilder(args)
+            Log.Logger.Information("Starting console host.");
+            var host = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((hostBuilderContext, configurationBuilder) =>
                 {
                     IList<IConfigurationSource> list = configurationBuilder.Sources;
@@ -36,22 +39,26 @@ public class Program
                         configurationSource => configurationSource is EnvironmentVariablesConfigurationSource,
                         new EnvironmentVariablesConfigurationSource()
                         {
-                            Prefix = EnvPrefix
+                            Prefix = MyConst.EnvPrefix
                         }
                     );
+
+                    configurationBuilder.AddJsonFile("accounts.json", true, true);
                 })
                 .ConfigureServices(RegisterServices)
                 .ConfigureServices((hostBuilderContext, services) =>
                 {
                     var list = services.Where(x => x.ServiceType == typeof(IAutoTaskService))
-                        .Select(x=>x.ImplementationType)
+                        .Select(x => x.ImplementationType)
                         .ToList();
                     var autoTaskTypeFactory = new AutoTaskTypeFactory(list);
                     services.AddSingleton(autoTaskTypeFactory);
                 })
-                .UseSerilog()
-                .RunConsoleAsync();
+                .UseSerilog().UseConsoleLifetime().Build();
 
+            RayGlobal.ServiceProviderRoot = host.Services;
+
+            await host.RunAsync();
             return 0;
         }
         catch (Exception ex)
@@ -76,7 +83,7 @@ public class Program
                     configurationSource => configurationSource is EnvironmentVariablesConfigurationSource,
                     new EnvironmentVariablesConfigurationSource()
                     {
-                        Prefix = EnvPrefix
+                        Prefix = MyConst.EnvPrefix
                     }
                 );
             });
@@ -85,9 +92,6 @@ public class Program
 
         return new LoggerConfiguration()
             .MinimumLevel.Information()
-#if DEBUG
-            .MinimumLevel.Debug()
-#endif
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
             .Enrich.FromLogContext()
             .WriteTo.Async(c =>
@@ -121,31 +125,44 @@ public class Program
             .CreateLogger();
     }
 
+    private static void InstallBrowser()
+    {
+        var exitCode = Microsoft.Playwright.Program.Main(new string[] { "install", "--with-deps", "chromium" });
+        if (exitCode != 0)
+        {
+            throw new Exception($"Playwright exited with code {exitCode}");
+        }
+    }
+
     private static void RegisterServices(HostBuilderContext hostBuilderContext, IServiceCollection services)
     {
         var config = (IConfigurationRoot)hostBuilderContext.Configuration;
 
         services.AddHostedService<MyHostedService>();
 
+        #region Accounts
+
+        services.Configure<List<MyAccountInfo>>(config.GetSection("Accounts"));
+        services.Configure<List<TargetAccountInfo>>(config.GetSection("Accounts"));
         services.AddSingleton(typeof(TargetAccountManager<>));
 
+        #endregion
+
         #region config
-        services.Configure<List<AccountOptions>>(config.GetSection("Accounts"));
         services.Configure<HttpClientCustomOptions>(config.GetSection("HttpCustomConfig"));
+        services.Configure<SystemConfig>(config.GetSection("SystemConfig"));
         #endregion
 
         #region Api
-        services.AddSingleton<TargetAccountManager<TargetAccountInfo>>();
-
         services.AddTransient<DelayHttpMessageHandler>();
         services.AddTransient<LogHttpMessageHandler>();
         services.AddTransient<ProxyHttpClientHandler>();
-        services.AddTransient<CookieHttpClientHandler<TargetAccountInfo>>();
+        services.AddTransient<CookieHttpClientHandler<MyAccountInfo>>();
         services
-            .AddRefitClient<IIkuuuApi>()
+            .AddRefitClient<IMyApi>()
             .ConfigureHttpClient(c =>
             {
-                c.BaseAddress = new Uri("https://ikuuu.eu");
+                c.BaseAddress = new Uri("https://api.bilibili.com");
 
                 var ua = config["UserAgent"];
                 if (!string.IsNullOrWhiteSpace(ua))
@@ -154,10 +171,12 @@ public class Program
             .AddHttpMessageHandler<DelayHttpMessageHandler>()
             .AddHttpMessageHandler<LogHttpMessageHandler>()
             .ConfigurePrimaryHttpMessageHandler<ProxyHttpClientHandler>()
-            .ConfigurePrimaryHttpMessageHandler<CookieHttpClientHandler<TargetAccountInfo>>()
+            .ConfigurePrimaryHttpMessageHandler<CookieHttpClientHandler<MyAccountInfo>>()
             ;
+        services.AddQingLongRefitApi();
         #endregion
 
+        #region AppService
         services.Scan(scan => scan
             .FromAssemblyOf<Program>()
             .AddClasses(classes => classes.AssignableTo<IAutoTaskService>())
@@ -165,5 +184,16 @@ public class Program
             .AsSelf()
             .WithTransientLifetime()
         );
+        #endregion
+
+        #region DomainService
+        services.Scan(scan => scan
+            .FromAssemblyOf<Program>()
+            .AddClasses(classes => classes.AssignableTo<IDomainService>())
+            //.AsImplementedInterfaces()
+            .AsSelf()
+            .WithTransientLifetime()
+        );
+        #endregion
     }
 }

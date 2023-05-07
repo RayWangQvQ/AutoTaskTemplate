@@ -16,6 +16,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		common.props = common.props
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutoTaskTemplate.PlaywrightGenerator", "src\AutoTaskTemplate.PlaywrightGenerator\AutoTaskTemplate.PlaywrightGenerator.csproj", "{EC743B79-4337-4C78-8059-064208CB4A81}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,6 +32,10 @@ Global
 		{ECC11F65-CB75-4DD1-AA2E-36D352A9E5CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ECC11F65-CB75-4DD1-AA2E-36D352A9E5CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ECC11F65-CB75-4DD1-AA2E-36D352A9E5CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC743B79-4337-4C78-8059-064208CB4A81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC743B79-4337-4C78-8059-064208CB4A81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC743B79-4337-4C78-8059-064208CB4A81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC743B79-4337-4C78-8059-064208CB4A81}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -37,6 +43,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{816499E4-1483-4DB7-86EB-35675983F90F} = {35B71694-79F0-4A4B-A03C-24691BBEBBC9}
 		{ECC11F65-CB75-4DD1-AA2E-36D352A9E5CA} = {A3D3423C-A1FB-4477-8D8A-E8B288CFB608}
+		{EC743B79-4337-4C78-8059-064208CB4A81} = {35B71694-79F0-4A4B-A03C-24691BBEBBC9}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7A48DC69-6EC6-4DDA-A356-FAAD436F5285}
