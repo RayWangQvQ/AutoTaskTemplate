@@ -25,18 +25,20 @@ namespace AutoTaskTemplate
         private string GetNickName(string userName)
         {
             var uname = string.IsNullOrWhiteSpace(userName) ? "" : userName.Split("@").ToList().First();
-            return string.IsNullOrWhiteSpace(uname) ? GetDedeUserID() : uname;
+            return string.IsNullOrWhiteSpace(uname) ? GetKeyValueFromStates() : uname;
         }
 
         public string States { get; set; }
 
-        public string GetDedeUserID()
+        public string KeyNameFromStates => "DedeUserID";
+
+        public string GetKeyValueFromStates()
         {
             if (string.IsNullOrWhiteSpace(States)) return "";
 
             dynamic stateObj = JsonConvert.DeserializeObject(States);
             var ckList = (JArray)stateObj["cookies"];
-            var ck = ckList.FirstOrDefault(x => x["name"].ToString() == "DedeUserID");
+            var ck = ckList.FirstOrDefault(x => x["name"].ToString() == KeyNameFromStates);
             var uid = ck["value"].ToString();
             return uid;
         }
@@ -49,7 +51,7 @@ namespace AutoTaskTemplate
             }
 
             MyAccountInfo other = (MyAccountInfo)obj;
-            return this.GetDedeUserID() == other.GetDedeUserID();
+            return this.GetKeyValueFromStates() == other.GetKeyValueFromStates();
         }
     }
 }

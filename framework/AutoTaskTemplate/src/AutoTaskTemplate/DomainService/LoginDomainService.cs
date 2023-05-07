@@ -30,20 +30,20 @@ public class LoginDomainService : IDomainService
         _systemOptions = systemOptions.Value;
     }
 
-    public async Task LoginAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
+    public async Task LoginAsync(MyAccountInfo account, IPage page, CancellationToken cancellationToken)
     {
         //await PwdLoginAsync(myAccount, page, cancellationToken);
-        await QrCodeLoginAsync(myAccount,page, cancellationToken);
+        await QrCodeLoginAsync(account,page, cancellationToken);
     }
 
     /// <summary>
     /// 扫描二维码登录
     /// </summary>
-    /// <param name="myAccount"></param>
+    /// <param name="account"></param>
     /// <param name="page"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task QrCodeLoginAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
+    public async Task QrCodeLoginAsync(MyAccountInfo account, IPage page, CancellationToken cancellationToken)
     {
         var loginLocator = page.GetByText("登录", new() { Exact = true });
 
@@ -83,28 +83,28 @@ public class LoginDomainService : IDomainService
         }
 
         _logger.LogInformation("持久化账号状态");
-        await SaveStatesAsync(myAccount, page, cancellationToken);
+        await SaveStatesAsync(account, page, cancellationToken);
         _logger.LogInformation("持久化成功");
     }
 
     /// <summary>
     /// 账号密码登录
     /// </summary>
-    /// <param name="myAccount"></param>
+    /// <param name="account"></param>
     /// <param name="page"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task PwdLoginAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
+    public async Task PwdLoginAsync(MyAccountInfo account, IPage page, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("填入账号：{userName}", myAccount.UserName);
+        _logger.LogInformation("填入账号：{userName}", account.UserName);
         var emailLocator = page.GetByLabel("账号");
         await emailLocator.ClickAsync();
-        await emailLocator.FillAsync(myAccount.UserName);
+        await emailLocator.FillAsync(account.UserName);
 
-        _logger.LogInformation("填入密码：{pwd}", new string('*', myAccount.Pwd.Length));
+        _logger.LogInformation("填入密码：{pwd}", new string('*', account.Pwd.Length));
         var pwdLocator = page.GetByLabel("密码");
         await pwdLocator.ClickAsync();
-        await pwdLocator.FillAsync(myAccount.Pwd);
+        await pwdLocator.FillAsync(account.Pwd);
 
         await page.GetByText("记住我").ClickAsync();
 
@@ -115,33 +115,52 @@ public class LoginDomainService : IDomainService
         //todo:判断是否登录成功
 
         _logger.LogInformation("持久化账号状态");
-        await SaveStatesAsync(myAccount, page, cancellationToken);
+        await SaveStatesAsync(account, page, cancellationToken);
         _logger.LogInformation("持久化成功");
     }
 
     /// <summary>
     /// 持久化状态
     /// </summary>
-    /// <param name="myAccount"></param>
+    /// <param name="account"></param>
     /// <param name="page"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public async Task SaveStatesAsync(MyAccountInfo myAccount, IPage page, CancellationToken cancellationToken)
+    public async Task SaveStatesAsync(MyAccountInfo account, IPage page, CancellationToken cancellationToken)
     {
-        myAccount.States = await page.Context.StorageStateAsync();
+        account.States = await page.Context.StorageStateAsync();
 
         if (_systemOptions.Platform.ToLower() == "qinglong")
         {
             _logger.LogInformation("尝试存储到青龙环境变量");
-            await QingLongHelper.SaveCookieListItemToQinLongAsync(_qingLongApi,
-                $"{MyConst.EnvPrefix}Accounts", myAccount.States, myAccount.GetDedeUserID(), "States",
-                _logger, cancellationToken);
+            await SaveStatesToQingLongAsync(account, cancellationToken);
         }
         else
         {
             _logger.LogInformation("尝试存储到本地配置文件");
-            SaveStatesToJsonFile(myAccount);
+            SaveStatesToJsonFile(account);
         }
+    }
+
+    public async Task SaveStatesToQingLongAsync(MyAccountInfo myAccount, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(myAccount.States)) return;
+
+        // 使用用户名+密码登录，所以根据用户名来保存states
+        if (!string.IsNullOrWhiteSpace(myAccount.UserName))
+        {
+            await QingLongHelper.SaveStatesByUserNameAsync(_qingLongApi,
+                myAccount.UserName,
+                $"{MyConst.EnvPrefix}Accounts",
+                myAccount.States,
+                logger: _logger, cancellationToken: cancellationToken);
+            return;
+        }
+
+        //使用扫码等方式登录，没有用户名，根据states本身来保存
+        await QingLongHelper.SaveStatesByStatesAsync(_qingLongApi,
+            $"{MyConst.EnvPrefix}Accounts", myAccount.States, myAccount.GetKeyValueFromStates(), "States",
+            _logger, cancellationToken);
     }
 
     public void SaveStatesToJsonFile(MyAccountInfo myAccount)
