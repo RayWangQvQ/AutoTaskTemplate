@@ -4,12 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Playwright;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Ray.DDD;
-using Ray.Infrastructure.Aop;
 using Ray.Infrastructure.AutoTask;
-using Volo.Abp.DependencyInjection;
 
 namespace AutoTaskTemplate.AppService;
 

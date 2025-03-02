@@ -10,25 +10,14 @@ using AutoTaskTemplate.Configs;
 
 namespace AutoTaskTemplate.DomainService;
 
-public class LoginDomainService : IDomainService
+public class LoginDomainService(
+    ILogger<LoginDomainService> logger,
+    IOptions<SystemConfig> systemOptions,
+    IQingLongApi qingLongApi,
+    IHostEnvironment hostEnvironment)
+    : IDomainService
 {
-    private readonly SystemConfig _systemOptions;
-    private readonly ILogger<LoginDomainService> _logger;
-    private readonly IQingLongApi _qingLongApi;
-    private readonly IHostEnvironment _hostEnvironment;
-
-    public LoginDomainService(
-        ILogger<LoginDomainService> logger,
-        IOptions<SystemConfig> systemOptions,
-        IQingLongApi qingLongApi,
-        IHostEnvironment hostEnvironment
-        )
-    {
-        _logger = logger;
-        _qingLongApi = qingLongApi;
-        _hostEnvironment = hostEnvironment;
-        _systemOptions = systemOptions.Value;
-    }
+    private readonly SystemConfig _systemOptions = systemOptions.Value;
 
     public async Task LoginAsync(MyAccountInfo account, IPage page, CancellationToken cancellationToken)
     {
@@ -49,7 +38,7 @@ public class LoginDomainService : IDomainService
 
         if (await loginLocator.CountAsync() < 0)
         {
-            _logger.LogInformation("已登录，不需要重复登录");
+            logger.LogInformation("已登录，不需要重复登录");
             return;
         }
 
@@ -66,14 +55,14 @@ public class LoginDomainService : IDomainService
         while (currentTry < maxTry && !loginSuccess)
         {
             currentTry++;
-            _logger.LogInformation("[{time}]等待扫码...", currentTry);
+            logger.LogInformation("[{time}]等待扫码...", currentTry);
 
             await Task.Delay(20 * 1000, cancellationToken);
 
             if (await page.GetByText("登录", new() { Exact = true }).CountAsync() == 0)
             {
                 loginSuccess = true;
-                _logger.LogInformation("扫码登录成功！");
+                logger.LogInformation("扫码登录成功！");
                 await page.ScreenshotAsync(new()
                 {
                     Path = "screenshots/already_login.png",
@@ -82,9 +71,9 @@ public class LoginDomainService : IDomainService
             };
         }
 
-        _logger.LogInformation("持久化账号状态");
+        logger.LogInformation("持久化账号状态");
         await SaveStatesAsync(account, page, cancellationToken);
-        _logger.LogInformation("持久化成功");
+        logger.LogInformation("持久化成功");
     }
 
     /// <summary>
@@ -96,27 +85,27 @@ public class LoginDomainService : IDomainService
     /// <returns></returns>
     public async Task PwdLoginAsync(MyAccountInfo account, IPage page, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("填入账号：{userName}", account.UserName);
+        logger.LogInformation("填入账号：{userName}", account.UserName);
         var emailLocator = page.GetByLabel("账号");
         await emailLocator.ClickAsync();
         await emailLocator.FillAsync(account.UserName);
 
-        _logger.LogInformation("填入密码：{pwd}", new string('*', account.Pwd.Length));
+        logger.LogInformation("填入密码：{pwd}", new string('*', account.Pwd.Length));
         var pwdLocator = page.GetByLabel("密码");
         await pwdLocator.ClickAsync();
         await pwdLocator.FillAsync(account.Pwd);
 
         await page.GetByText("记住我").ClickAsync();
 
-        _logger.LogInformation("点击登录");
+        logger.LogInformation("点击登录");
         var loginLocator = page.GetByRole(AriaRole.Button, new() { Name = "登录", Exact = true });
         await loginLocator.ClickAsync();
 
         //todo:判断是否登录成功
 
-        _logger.LogInformation("持久化账号状态");
+        logger.LogInformation("持久化账号状态");
         await SaveStatesAsync(account, page, cancellationToken);
-        _logger.LogInformation("持久化成功");
+        logger.LogInformation("持久化成功");
     }
 
     /// <summary>
@@ -132,12 +121,12 @@ public class LoginDomainService : IDomainService
 
         if (_systemOptions.Platform.ToLower() == "qinglong")
         {
-            _logger.LogInformation("尝试存储到青龙环境变量");
+            logger.LogInformation("尝试存储到青龙环境变量");
             await SaveStatesToQingLongAsync(account, cancellationToken);
         }
         else
         {
-            _logger.LogInformation("尝试存储到本地配置文件");
+            logger.LogInformation("尝试存储到本地配置文件");
             SaveStatesToJsonFile(account);
         }
     }
@@ -149,23 +138,23 @@ public class LoginDomainService : IDomainService
         // 使用用户名+密码登录，所以根据用户名来保存states
         if (!string.IsNullOrWhiteSpace(myAccount.UserName))
         {
-            await QingLongHelper.SaveStatesByUserNameAsync(_qingLongApi,
+            await QingLongHelper.SaveStatesByUserNameAsync(qingLongApi,
                 myAccount.UserName,
                 $"{MyConst.EnvPrefix}Accounts",
                 myAccount.States,
-                logger: _logger, cancellationToken: cancellationToken);
+                logger: logger, cancellationToken: cancellationToken);
             return;
         }
 
         //使用扫码等方式登录，没有用户名，根据states本身来保存
-        await QingLongHelper.SaveStatesByStatesAsync(_qingLongApi,
+        await QingLongHelper.SaveStatesByStatesAsync(qingLongApi,
             $"{MyConst.EnvPrefix}Accounts", myAccount.States, myAccount.GetKeyValueFromStates(), "States",
-            _logger, cancellationToken);
+            logger, cancellationToken);
     }
 
     public void SaveStatesToJsonFile(MyAccountInfo myAccount)
     {
-        var pl = _hostEnvironment.ContentRootPath.Split("bin").ToList();
+        var pl = hostEnvironment.ContentRootPath.Split("bin").ToList();
         pl.RemoveAt(pl.Count - 1);
         var path = Path.Combine(string.Join("bin", pl), "accounts.json");
 
@@ -218,15 +207,15 @@ public class LoginDomainService : IDomainService
         if (_systemOptions.Platform.ToLower() == "qinglong")
         {
             Ray.Infrastructure.BarCode.BarCodeHelper.PrintSmallQrCode(img,
-                onRowPrintProcess: s => _logger.LogInformation(s));
+                onRowPrintProcess: s => logger.LogInformation(s));
         }
         else
         {
             Ray.Infrastructure.BarCode.BarCodeHelper.PrintQrCode(img,
-                onRowPrintProcess: s => _logger.LogInformation(s));
+                onRowPrintProcess: s => logger.LogInformation(s));
         }
         img.Dispose();
-        _logger.LogInformation("若显示异常，请访问在线版扫描：{qrcode}", GetOnlinePic(text));
+        logger.LogInformation("若显示异常，请访问在线版扫描：{qrcode}", GetOnlinePic(text));
     }
 
     private string GetOnlinePic(string str)

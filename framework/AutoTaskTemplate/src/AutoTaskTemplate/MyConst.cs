@@ -1,7 +1,6 @@
-﻿namespace AutoTaskTemplate
+﻿namespace AutoTaskTemplate;
+
+public static class MyConst
 {
-    public class MyConst
-    {
-        public static string EnvPrefix = "AutoTaskTemplate_";
-    }
+    public const string EnvPrefix = "AutoTaskTemplate_";
 }

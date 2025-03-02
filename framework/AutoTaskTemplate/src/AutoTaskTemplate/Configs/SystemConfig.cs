@@ -1,11 +1,10 @@
-﻿namespace AutoTaskTemplate.Configs
+﻿namespace AutoTaskTemplate.Configs;
+
+public class SystemConfig
 {
-    public class SystemConfig
-    {
-        public string Platform { get; set; }
+    public string Platform { get; set; }
 
-        public string EntranceUrl { get; set; }
+    public string EntranceUrl { get; set; }
 
-        public string UserAgent { get; set; }
-    }
+    public string UserAgent { get; set; }
 }

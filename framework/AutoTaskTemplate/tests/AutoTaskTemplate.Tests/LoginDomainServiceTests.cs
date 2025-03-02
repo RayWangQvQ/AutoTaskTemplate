@@ -6,11 +6,11 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Ray.Infrastructure.QingLong;
 
-namespace AutoTaskTemplate.Tests
+namespace AutoTaskTemplate.Tests;
+
+public class LoginDomainServiceTests
 {
-    public class LoginDomainServiceTests
-    {
-        private const string StatesSample = @"
+    private const string StatesSample = @"
 {
     ""cookies"":[
         {""name"":""innersign"",""value"":""0"",""domain"":"".bilibili.com"",""path"":""/"",""expires"":-1,""httpOnly"":false,""secure"":false,""sameSite"":""Lax""},
@@ -58,34 +58,33 @@ namespace AutoTaskTemplate.Tests
     ]
 }";
 
-        private LoginDomainService _target;
+    private LoginDomainService _target;
 
-        private Mock<IHostEnvironment> _hostEnvironmentMock;
-        private Mock<ILogger<LoginDomainService>> _loggerMock;
-        private Mock<IOptions<SystemConfig>> _systemOptionsMock;
-        private Mock<IQingLongApi> _qinglongApiMock;
+    private Mock<IHostEnvironment> _hostEnvironmentMock;
+    private Mock<ILogger<LoginDomainService>> _loggerMock;
+    private Mock<IOptions<SystemConfig>> _systemOptionsMock;
+    private Mock<IQingLongApi> _qinglongApiMock;
 
-        public LoginDomainServiceTests()
+    public LoginDomainServiceTests()
+    {
+        _hostEnvironmentMock = new();
+        _loggerMock = new();
+        _systemOptionsMock = new();
+        _qinglongApiMock = new();
+
+        _hostEnvironmentMock.Setup(x => x.ContentRootPath)
+            .Returns(AppContext.BaseDirectory);
+
+        _target = new LoginDomainService(_loggerMock.Object, _systemOptionsMock.Object, _qinglongApiMock.Object, _hostEnvironmentMock.Object);
+    }
+
+    [Fact]
+    public void SaveStatesToJson_Test()
+    {
+        var account = new MyAccountInfo()
         {
-            _hostEnvironmentMock = new();
-            _loggerMock = new();
-            _systemOptionsMock = new();
-            _qinglongApiMock = new();
-
-            _hostEnvironmentMock.Setup(x => x.ContentRootPath)
-                .Returns(AppContext.BaseDirectory);
-
-            _target = new LoginDomainService(_loggerMock.Object, _systemOptionsMock.Object, _qinglongApiMock.Object, _hostEnvironmentMock.Object);
-        }
-
-        [Fact]
-        public void SaveStatesToJson_Test()
-        {
-            var account = new MyAccountInfo()
-            {
-                States = StatesSample
-            };
-            _target.SaveStatesToJsonFile(account);
-        }
+            States = StatesSample
+        };
+        _target.SaveStatesToJsonFile(account);
     }
 }

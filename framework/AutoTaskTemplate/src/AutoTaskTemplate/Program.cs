@@ -1,5 +1,4 @@
 ﻿using AutoTaskTemplate.Agents;
-using AutoTaskTemplate.AppService;
 using AutoTaskTemplate.Configs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.EnvironmentVariables;
@@ -96,7 +95,7 @@ public class Program
             .Enrich.FromLogContext()
             .WriteTo.Async(c =>
             {
-                c.File($"Logs/{DateTime.Now.ToString("yyyy-MM-dd")}/{DateTime.Now.ToString("HH-mm-ss")}.txt",
+                c.File($"Logs/{DateTime.Now:yyyy-MM-dd}/{DateTime.Now:HH-mm-ss}.txt",
                     restrictedToMinimumLevel: LogEventLevel.Debug);
             })
             .WriteTo.Console()
@@ -127,7 +126,7 @@ public class Program
 
     private static void InstallBrowser()
     {
-        var exitCode = Microsoft.Playwright.Program.Main(new string[] { "install", "--with-deps", "chromium" });
+        var exitCode = Microsoft.Playwright.Program.Main(["install", "--with-deps", "chromium"]);
         if (exitCode != 0)
         {
             throw new Exception($"Playwright exited with code {exitCode}");
