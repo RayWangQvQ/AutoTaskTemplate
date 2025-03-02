@@ -82,7 +82,6 @@ publish_self_contained() {
     dotnet publish --configuration Release \
         --self-contained true \
         --runtime $runtime \
-        -p:PublishTrimmed=true \
         -p:PublishSingleFile=true \
         -o $outputDir
 
